@@ -9,10 +9,10 @@ DASH_PID=$!
 
 # Function to stop servers on CTRL+C
 cleanup() {
-    echo "Shutting down servers..."
+    echo "Shutting down dashboard..."
     kill $DASH_PID
     wait $DASH_PID
-    echo "Servers stopped."
+    echo "Dashboard stopped."
     exit 0
 }
 
