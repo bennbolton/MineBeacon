@@ -5,6 +5,8 @@ from dash.dependencies import Input, Output
 from dash import html, dcc
 import psutil
 from pages.dashboard import players_details
+import os
+import datetime
 
 api = ServerAPI()
 api.connect()
@@ -47,7 +49,7 @@ def dashboard_update_selected_stat(cpu_clicks, ram_clicks, players_clicks):
         Output("ping-value", "children"),
         Output("ph-value", "children")
     ],
-    Input("update-interval", "n_intervals")
+    Input("metric-update-interval", "n_intervals")
 )
 def update_simple_metrics(n):
     sys_stats = api.get_sys_stats()
@@ -64,3 +66,35 @@ def update_simple_metrics(n):
         ping,
         ph
     )
+
+@dash.callback(
+    [
+        Output("latest-backup", "children"),
+        Output("since-latest-backup", "children")
+    ],
+    Input("backups-url", "pathname")
+)
+def update_backups(_):
+    dt = api.get_latest_backup_datetime()
+    niceStr = dt.strftime("%d %B %Y at %H:%M:%S")
+    delta = datetime.datetime.now() - dt
+
+    days = delta.days
+    hours, remainder = divmod(delta.seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    timeSince = ""
+    if minutes < 1:
+        timeSince = "Just now"
+    else:
+        if days > 0:
+            timeSince += f"{days} day{'' if days == 1 else 's'}, "
+        if hours > 0:
+            timeSince += f"{hours} hour{'' if hours == 1 else 's'} and "
+        timeSince += f"{minutes} minute{'' if minutes == 1 else 's'} ago"
+    return (niceStr,timeSince)
+
+@dash.callback(
+    Input("backup-now-button", "n_clicks")
+)
+def make_new_backup(_):
+    api.make_backup()

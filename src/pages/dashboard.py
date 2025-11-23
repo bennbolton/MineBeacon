@@ -5,7 +5,6 @@ import dash_bootstrap_components as dbc
 dash.register_page(__name__, path="/")
 
 def metric_card(id_base, title, hasProgress = False):
-    percentMetrics = ["cpu", "ram", "disk"]
     return html.Div(
         dbc.Card(
             [
@@ -56,7 +55,7 @@ layout = dbc.Container(
         ),
         html.Hr(className="my-4"),
         html.Div(id="details-section"),
-        dcc.Interval(id="update-interval", interval=5000, n_intervals=0)
+        dcc.Interval(id="metric-update-interval", interval=5000, n_intervals=0)
     ],
     fluid=True
 )
@@ -67,7 +66,7 @@ def players_details(online_players):
     for player in online_players:
         card = dbc.Col(dbc.Card(
             [
-                dbc.CardHeader(player.name, className="text-center fw-bold"),
+                dbc.CardHeader(player, className="text-center fw-bold"),
             ],
             className="shawdow-sm h-100",
             style={"minHeight": "150px"}

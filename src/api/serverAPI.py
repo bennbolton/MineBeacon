@@ -1,12 +1,17 @@
 from mcrcon import MCRcon
 from .config import *
 import psutil as psu
+from datetime import datetime
+import time, os, subprocess
 
 class ServerAPI:
+    MAX_BACKUPS = 10
     def __init__(self):
         self.ip = MINECRAFT_SERVER_IP
         self.port = MINECRAFT_RCON_PORT
         self.password = MINECRAFT_RCON_PASSWORD
+        self.dir = os.path.expanduser(SERVER_DIR)
+        self.backupDir = os.path.join(self.dir, "backups")
         self.connection = None
 
     def connect(self):
@@ -28,7 +33,7 @@ class ServerAPI:
             player_list = resp.split(": ")[1].split(", ")
             if player_list == [""]:
                 return []
-            return [Player(player, self) for player in player_list]
+            return player_list
         except Exception:
             return []
         
@@ -39,19 +44,39 @@ class ServerAPI:
             "disk": psu.disk_usage("/").percent
         }
     
+    def make_backup(self):
+        ts = datetime.now().strftime("%F_%H-%M-%S")
+        dest = os.path.join(self.backupDir, f'backup_{ts}.tar.gz')
+        os.makedirs(self.backupDir, exist_ok=True)
+        self.cmd("say Attemping to backup server")
+        self.cmd("save-off")
+        self.cmd("save-all flush")
 
+        time.sleep(1)
 
-class Player:
-    def __init__(self, name: str, server: ServerAPI):
-        self.server = server
-        self.name = name
+        subprocess.run(
+            [
+                "tar", "-czf", dest,
+                "-C", self.dir,
+                "world",
+                "server.properties", "ops.json",
+                "banned-players.json", "banned-ips.json",
+                "mods", "config", "dashboard", "eula.txt", "startServer.sh"
+            ]
+        )
 
-    @property
-    def pos(self):
-        resp = self.server.cmd(f"data get entity {self.name} Pos")
-        start = resp.index("[") + 1
-        end = resp.index("]")
-        inside = resp[start:end]
-        nums = inside.split(", ")
-        position = tuple([round(float(num[:-1]), 1) for num in nums])
-        return position
+        self.cmd("save-on")
+        self.cmd("say Backup Complete")
+
+        files = os.listdir(self.backupDir)
+        backups = [f for f in files if f.endswith(".tar.gz")]
+        backups.sort()
+
+        while len(backups) > self.MAX_BACKUPS:
+            oldest = backups.pop(0)
+            os.remove(os.path.join(self.backupDir, oldest))
+
+    def get_latest_backup_datetime(self) -> datetime:
+        backups = sorted(os.listdir(self.backupDir))
+        latest = backups[-1][7:-7]
+        return datetime.strptime(latest, "%Y-%m-%d_%H-%M-%S")
